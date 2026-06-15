@@ -19,6 +19,94 @@ import { processImagePipelineAsync } from './lib/pipeline'
 import { continueWithResult, swapWorkspaceImages } from './lib/workspace-images'
 
 type ProcessMode = 'scramble' | 'restore'
+type Language = PersistedSettings['language']
+
+const messages = {
+  zh: {
+    eyebrow: 'Nonlinear image distortion tool',
+    title: '图片非线性扰动工具',
+    tracking: '密钥追踪',
+    github: 'GitHub',
+    openGithub: '打开 GitHub 仓库',
+    languageLabel: '语言',
+    guideTitle: '怎么用',
+    guideItems: [
+      '先选一张图片，也可以直接粘贴截图或拖入图片；放进来后会自动处理。',
+      '点“加扰”后下载图片，把参数码一起保存好；参数码就是以后还原用的钥匙。',
+      '别人把图片放大或缩小后再发回来，也可以用同一个参数码尝试还原。',
+      '点“还原”会自动把右侧结果换到左侧，方便立刻对比还原效果。',
+      '点“变模糊”会自动加扰再还原一次，可以连续点，细节会一层层变软。',
+    ],
+    inputTitle: '输入',
+    chooseFile: '选文件',
+    camera: '拍照',
+    inputHint: '也可以直接粘贴截图，或把图片拖进页面。',
+    distortionTitle: '非线性偏移',
+    processingMode: '处理模式',
+    scramble: '加扰',
+    restore: '还原',
+    seedLabel: '密钥 / 随机种子',
+    regenerateSeed: '重新生成随机种子',
+    amplitude: '偏移强度',
+    cellSize: '网格尺度',
+    swirl: '旋转扰动',
+    autoCopyTitle: '处理后自动复制结果',
+    autoCopyHelp: '成功后把结果图放到剪贴板，方便直接粘贴到聊天或文档。',
+    parameterCode: '参数码',
+    parameterPlaceholder: '复制或粘贴 NO2: 开头的参数码',
+    hintLine: '偏移强度和网格尺度按图片短边比例计算；还原时必须使用与加扰时完全相同的密钥和参数。',
+    processing: '处理中',
+    process: '处理',
+    blur: '变模糊',
+    download: '下载',
+    progressLabel: '处理进度',
+    sourcePreview: '原图预览',
+    resultPreview: '结果预览',
+    emptyPreview: '等待图像',
+  },
+  en: {
+    eyebrow: 'Nonlinear image distortion tool',
+    title: 'Nonlinear Image Distortion Tool',
+    tracking: 'Key tracing',
+    github: 'GitHub',
+    openGithub: 'Open GitHub repository',
+    languageLabel: 'Language',
+    guideTitle: 'How to use',
+    guideItems: [
+      'Choose an image, paste a screenshot, or drop an image here; it will process automatically.',
+      'After scrambling, download the image and keep the parameter code. That code is the key for restoration.',
+      'If the image is resized and sent back later, you can still try restoring it with the same parameter code.',
+      'When you switch to restore, the result image is moved back to the input side for quick comparison.',
+      'Use “Soften” to run one scramble-and-restore pass. You can press it repeatedly to soften details.',
+    ],
+    inputTitle: 'Input',
+    chooseFile: 'Choose file',
+    camera: 'Camera',
+    inputHint: 'You can also paste a screenshot or drag an image onto the page.',
+    distortionTitle: 'Nonlinear offset',
+    processingMode: 'Processing mode',
+    scramble: 'Scramble',
+    restore: 'Restore',
+    seedLabel: 'Key / random seed',
+    regenerateSeed: 'Regenerate random seed',
+    amplitude: 'Offset strength',
+    cellSize: 'Grid scale',
+    swirl: 'Rotation offset',
+    autoCopyTitle: 'Auto-copy result after processing',
+    autoCopyHelp: 'Copies the finished image to the clipboard, ready to paste into chat or documents.',
+    parameterCode: 'Parameter code',
+    parameterPlaceholder: 'Copy or paste a parameter code starting with NO2:',
+    hintLine: 'Offset strength and grid scale are based on the image short edge. Restore requires the exact same key and parameters used for scrambling.',
+    processing: 'Processing',
+    process: 'Process',
+    blur: 'Soften',
+    download: 'Download',
+    progressLabel: 'Processing progress',
+    sourcePreview: 'Input preview',
+    resultPreview: 'Result preview',
+    emptyPreview: 'Waiting for image',
+  },
+} as const
 
 const fallbackSettings: PersistedSettings = {
   mode: 'scramble',
@@ -29,6 +117,7 @@ const fallbackSettings: PersistedSettings = {
     swirl: 0.25,
   },
   copyResultToClipboard: false,
+  language: 'zh',
 }
 
 function loadInitialSettings(): PersistedSettings {
@@ -67,7 +156,7 @@ function Slider({ label, value, min, max, step = 1, suffix = '', onChange }: Sli
   )
 }
 
-function PreviewPanel({ title, image, meta }: { title: string; image?: string; meta?: string }) {
+function PreviewPanel({ title, image, meta, emptyLabel }: { title: string; image?: string; meta?: string; emptyLabel: string }) {
   return (
     <section className="preview-panel">
       <div className="panel-title">
@@ -76,7 +165,7 @@ function PreviewPanel({ title, image, meta }: { title: string; image?: string; m
         {meta ? <small>{meta}</small> : null}
       </div>
       <div className="preview-frame">
-        {image ? <img src={image} alt={title} /> : <span className="empty-preview">等待图像</span>}
+        {image ? <img src={image} alt={title} /> : <span className="empty-preview">{emptyLabel}</span>}
       </div>
     </section>
   )
@@ -109,6 +198,7 @@ function App() {
   const [isEditingParameterCode, setIsEditingParameterCode] = useState(false)
   const [isDraggingImage, setIsDraggingImage] = useState(false)
   const [copyResultToClipboard, setCopyResultToClipboard] = useState(initialSettings.copyResultToClipboard)
+  const [language, setLanguage] = useState<Language>(initialSettings.language)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -136,9 +226,10 @@ function App() {
           swirl: offsetSwirl / 100,
         },
         copyResultToClipboard,
+        language,
       }),
     )
-  }, [mode, offsetSeed, offsetAmplitude, offsetCellSize, offsetSwirl, copyResultToClipboard])
+  }, [mode, offsetSeed, offsetAmplitude, offsetCellSize, offsetSwirl, copyResultToClipboard, language])
 
   useEffect(() => {
     return () => {
@@ -163,6 +254,7 @@ function App() {
 
   const syncedParameterCode = encodeParameterCode(currentOffsetOptions())
   const displayedParameterCode = isEditingParameterCode ? parameterCodeInput : syncedParameterCode
+  const t = messages[language]
 
   function handleParameterCodeChange(value: string) {
     setIsEditingParameterCode(true)
@@ -349,23 +441,31 @@ function App() {
     >
       <header className="topbar">
         <div>
-          <span className="eyebrow">Nonlinear image distortion tool</span>
-          <h1>图片非线性扰动工具</h1>
+          <span className="eyebrow">{t.eyebrow}</span>
+          <h1>{t.title}</h1>
         </div>
         <div className="mode-badge">
           <Shield size={18} aria-hidden="true" />
-          密钥追踪
+          {t.tracking}
+        </div>
+        <div className="language-switch" role="group" aria-label={t.languageLabel}>
+          <button type="button" className={language === 'zh' ? 'active' : ''} onClick={() => setLanguage('zh')}>
+            中文
+          </button>
+          <button type="button" className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>
+            English
+          </button>
         </div>
         <a
           className="github-link"
           href="https://github.com/createskyblue/Nonlinear-Image-Distortion-Tool"
           target="_blank"
           rel="noreferrer"
-          aria-label="打开 GitHub 仓库"
-          title="打开 GitHub 仓库"
+          aria-label={t.openGithub}
+          title={t.openGithub}
         >
           <GitHubMark />
-          <span>GitHub</span>
+          <span>{t.github}</span>
         </a>
       </header>
 
@@ -374,33 +474,31 @@ function App() {
           <section className="panel guide-panel">
             <div className="section-title">
               <Info size={18} aria-hidden="true" />
-              <h2>怎么用</h2>
+              <h2>{t.guideTitle}</h2>
             </div>
             <ul>
-              <li>先选一张图片，也可以直接粘贴截图或拖入图片；放进来后会自动处理。</li>
-              <li>点“加扰”后下载图片，把参数码一起保存好；参数码就是以后还原用的钥匙。</li>
-              <li>别人把图片放大或缩小后再发回来，也可以用同一个参数码尝试还原。</li>
-              <li>点“还原”会自动把右侧结果换到左侧，方便立刻对比还原效果。</li>
-              <li>点“变模糊”会自动加扰再还原一次，可以连续点，细节会一层层变软。</li>
+              {t.guideItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
             </ul>
           </section>
 
           <section className="panel">
             <div className="section-title">
               <Upload size={18} aria-hidden="true" />
-              <h2>输入</h2>
+              <h2>{t.inputTitle}</h2>
             </div>
             <div className="button-grid">
               <button type="button" onClick={() => fileInputRef.current?.click()}>
                 <FileImage size={18} aria-hidden="true" />
-                选文件
+                {t.chooseFile}
               </button>
               <button type="button" onClick={() => cameraInputRef.current?.click()}>
                 <Camera size={18} aria-hidden="true" />
-                拍照
+                {t.camera}
               </button>
             </div>
-            <p className="input-hint">也可以直接粘贴截图，或把图片拖进页面。</p>
+            <p className="input-hint">{t.inputHint}</p>
             <input ref={fileInputRef} className="hidden-input" type="file" accept="image/*" onChange={readSelectedFile} />
             <input ref={cameraInputRef} className="hidden-input" type="file" accept="image/*" capture="environment" onChange={readSelectedFile} />
           </section>
@@ -408,63 +506,63 @@ function App() {
           <section className="panel">
             <div className="section-title">
               <Waves size={18} aria-hidden="true" />
-              <h2>非线性偏移</h2>
+              <h2>{t.distortionTitle}</h2>
             </div>
-            <div className="mode-switch" role="group" aria-label="处理模式">
+            <div className="mode-switch" role="group" aria-label={t.processingMode}>
               <button type="button" className={mode === 'scramble' ? 'active' : ''} onClick={() => handleModeChange('scramble')}>
-                加扰
+                {t.scramble}
               </button>
               <button type="button" className={mode === 'restore' ? 'active' : ''} onClick={() => handleModeChange('restore')}>
-                还原
+                {t.restore}
               </button>
             </div>
             <div className="seed-row">
               <label>
-                密钥 / 随机种子
+                {t.seedLabel}
                 <input value={offsetSeed} onChange={(event) => setOffsetSeed(event.target.value)} />
               </label>
-              <button type="button" aria-label="重新生成随机种子" title="重新生成随机种子" onClick={() => setOffsetSeed(createRandomSeed())}>
+              <button type="button" aria-label={t.regenerateSeed} title={t.regenerateSeed} onClick={() => setOffsetSeed(createRandomSeed())}>
                 <RefreshCw size={18} aria-hidden="true" />
               </button>
             </div>
-            <Slider label="偏移强度" value={offsetAmplitude} min={0} max={12} step={0.1} suffix="%" onChange={setOffsetAmplitude} />
-            <Slider label="网格尺度" value={offsetCellSize} min={2} max={40} step={0.5} suffix="%" onChange={setOffsetCellSize} />
-            <Slider label="旋转扰动" value={offsetSwirl} min={0} max={100} suffix="%" onChange={setOffsetSwirl} />
+            <Slider label={t.amplitude} value={offsetAmplitude} min={0} max={12} step={0.1} suffix="%" onChange={setOffsetAmplitude} />
+            <Slider label={t.cellSize} value={offsetCellSize} min={2} max={40} step={0.5} suffix="%" onChange={setOffsetCellSize} />
+            <Slider label={t.swirl} value={offsetSwirl} min={0} max={100} suffix="%" onChange={setOffsetSwirl} />
             <label className="copy-toggle">
               <span>
-                <strong>处理后自动复制结果</strong>
-                <small>成功后把结果图放到剪贴板，方便直接粘贴到聊天或文档。</small>
+                <strong>{t.autoCopyTitle}</strong>
+                <small>{t.autoCopyHelp}</small>
               </span>
               <input type="checkbox" checked={copyResultToClipboard} onChange={(event) => setCopyResultToClipboard(event.target.checked)} />
             </label>
             <label className="parameter-code">
-              参数码
-              <textarea value={displayedParameterCode} placeholder="复制或粘贴 NO2: 开头的参数码" rows={3} onChange={(event) => handleParameterCodeChange(event.target.value)} />
+              {t.parameterCode}
+              <textarea value={displayedParameterCode} placeholder={t.parameterPlaceholder} rows={3} onChange={(event) => handleParameterCodeChange(event.target.value)} />
             </label>
-            <p className="hint-line">偏移强度和网格尺度按图片短边比例计算；还原时必须使用与加扰时完全相同的密钥和参数。</p>
+            <p className="hint-line">{t.hintLine}</p>
           </section>
 
           <div className="action-row">
             <button className="primary-button" type="button" disabled={isProcessing} onClick={handleProcess}>
               <Play size={18} aria-hidden="true" />
-              {isProcessing ? '处理中' : '处理'}
+              {isProcessing ? t.processing : t.process}
             </button>
             <button type="button" disabled={isProcessing} onClick={handleBlur}>
               <Waves size={18} aria-hidden="true" />
-              变模糊
+              {t.blur}
             </button>
             <button type="button" onClick={handleDownload}>
               <Download size={18} aria-hidden="true" />
-              下载
+              {t.download}
             </button>
           </div>
           {isProcessing ? (
             <div className="progress-panel" role="status" aria-live="polite">
               <div className="progress-header">
-                <span>处理中</span>
+                <span>{t.processing}</span>
                 <strong>{progress}%</strong>
               </div>
-              <div className="progress-track" aria-label="处理进度">
+              <div className="progress-track" aria-label={t.progressLabel}>
                 <span style={{ width: `${progress}%` }} />
               </div>
             </div>
@@ -472,8 +570,8 @@ function App() {
         </aside>
 
         <section className="preview-grid">
-          <PreviewPanel title="原图预览" image={source?.url} meta={sourceMeta} />
-          <PreviewPanel title="结果预览" image={result?.url} meta={result ? resultName : undefined} />
+          <PreviewPanel title={t.sourcePreview} image={source?.url} meta={sourceMeta} emptyLabel={t.emptyPreview} />
+          <PreviewPanel title={t.resultPreview} image={result?.url} meta={result ? resultName : undefined} emptyLabel={t.emptyPreview} />
         </section>
       </div>
     </main>

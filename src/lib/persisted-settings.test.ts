@@ -12,6 +12,7 @@ describe('persisted settings', () => {
         swirl: 0.35,
       },
       copyResultToClipboard: true,
+      language: 'en',
     }
 
     expect(decodePersistedSettings(encodePersistedSettings(settings))).toEqual(settings)
@@ -38,6 +39,33 @@ describe('persisted settings', () => {
         swirl: 0.2,
       },
       copyResultToClipboard: false,
+      language: 'zh',
+    })
+  })
+
+  it('keeps v3 settings readable with Chinese as the default language', () => {
+    const value = JSON.stringify({
+      v: 3,
+      mode: 'restore',
+      offset: {
+        key: 'v3-owner',
+        amplitude: 4,
+        cellSize: 16,
+        swirl: 0.45,
+      },
+      copyResultToClipboard: true,
+    })
+
+    expect(decodePersistedSettings(value)).toEqual({
+      mode: 'restore',
+      offset: {
+        key: 'v3-owner',
+        amplitude: 4,
+        cellSize: 16,
+        swirl: 0.45,
+      },
+      copyResultToClipboard: true,
+      language: 'zh',
     })
   })
 

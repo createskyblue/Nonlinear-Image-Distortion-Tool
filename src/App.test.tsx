@@ -1,6 +1,11 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 import App from './App'
+
+afterEach(() => {
+  cleanup()
+  localStorage.clear()
+})
 
 describe('App', () => {
   it('renders the processing workspace with file, camera, process, and download actions', () => {
@@ -25,5 +30,23 @@ describe('App', () => {
     expect(screen.getByText('非线性偏移')).toBeTruthy()
     expect(screen.getByText('原图预览')).toBeTruthy()
     expect(screen.getByText('结果预览')).toBeTruthy()
+  })
+
+  it('switches between Chinese and English labels', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'English' }))
+
+    expect(screen.getByRole('heading', { name: 'Nonlinear Image Distortion Tool' })).toBeTruthy()
+    expect(screen.getByText('How to use')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Choose file' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Parameter code' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open GitHub repository' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '中文' }))
+
+    expect(screen.getByRole('heading', { name: '图片非线性扰动工具' })).toBeTruthy()
+    expect(screen.getByText('怎么用')).toBeTruthy()
   })
 })
