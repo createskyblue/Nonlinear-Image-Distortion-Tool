@@ -29,6 +29,26 @@ function makeGradient(width: number, height: number): ImageData {
   return new ImageData(data, width, height)
 }
 
+function makePixelArtBlocks(width: number, height: number): ImageData {
+  const data = new Uint8ClampedArray(width * height * 4)
+  const colors = [
+    [188, 188, 188],
+    [255, 255, 255],
+    [0, 0, 0],
+  ]
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = (y * width + x) * 4
+      const color = x % 24 === 0 || y % 24 === 0 ? colors[2] : x < width / 2 ? colors[0] : colors[1]
+      data[i] = color[0]
+      data[i + 1] = color[1]
+      data[i + 2] = color[2]
+      data[i + 3] = 255
+    }
+  }
+  return new ImageData(data, width, height)
+}
+
 function meanAbsoluteRgbDifference(a: ImageData, b: ImageData): number {
   let total = 0
   for (let i = 0; i < a.data.length; i += 4) {
@@ -37,6 +57,14 @@ function meanAbsoluteRgbDifference(a: ImageData, b: ImageData): number {
     total += Math.abs(a.data[i + 2] - b.data[i + 2])
   }
   return total / ((a.data.length / 4) * 3)
+}
+
+function countUniqueColors(image: ImageData): number {
+  const colors = new Set<string>()
+  for (let i = 0; i < image.data.length; i += 4) {
+    colors.add(`${image.data[i]},${image.data[i + 1]},${image.data[i + 2]},${image.data[i + 3]}`)
+  }
+  return colors.size
 }
 
 function countHorizontalSamplingFolds(map: OffsetVector[], width: number, height: number): number {
@@ -53,6 +81,114 @@ function countHorizontalSamplingFolds(map: OffsetVector[], width: number, height
     }
   }
   return folds
+}
+
+function sampleX(map: OffsetVector[], width: number, x: number, y: number): number {
+  return x - map[y * width + x].dx
+}
+
+function minHorizontalSampleStepNear(
+  map: OffsetVector[],
+  width: number,
+  height: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+): number {
+  let minStep = Number.POSITIVE_INFINITY
+  const startY = Math.max(0, centerY - radius)
+  const endY = Math.min(height - 1, centerY + radius)
+  const startX = Math.max(0, centerX - radius)
+  const endX = Math.min(width - 2, centerX + radius)
+
+  for (let y = startY; y <= endY; y += 1) {
+    for (let x = startX; x <= endX; x += 1) {
+      minStep = Math.min(minStep, sampleX(map, width, x + 1, y) - sampleX(map, width, x, y))
+    }
+  }
+
+  return minStep
+}
+
+function sampleY(map: OffsetVector[], width: number, x: number, y: number): number {
+  return y - map[y * width + x].dy
+}
+
+function localSamplingDiagnostics(
+  map: OffsetVector[],
+  width: number,
+  height: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
+): Record<string, number> {
+  let minStepX = Number.POSITIVE_INFINITY
+  let maxStepX = Number.NEGATIVE_INFINITY
+  let maxStepXJump = 0
+  let maxVerticalSampleXJump = 0
+  let minStepY = Number.POSITIVE_INFINITY
+  let maxStepY = Number.NEGATIVE_INFINITY
+  let maxStepYJump = 0
+  let maxHorizontalSampleYJump = 0
+  const startY = Math.max(0, centerY - radius)
+  const endY = Math.min(height - 1, centerY + radius)
+  const startX = Math.max(0, centerX - radius)
+  const endX = Math.min(width - 1, centerX + radius)
+
+  for (let y = startY; y <= endY; y += 1) {
+    let previousStepX: number | null = null
+    for (let x = startX; x < endX; x += 1) {
+      const step = sampleX(map, width, x + 1, y) - sampleX(map, width, x, y)
+      minStepX = Math.min(minStepX, step)
+      maxStepX = Math.max(maxStepX, step)
+      if (previousStepX !== null) {
+        maxStepXJump = Math.max(maxStepXJump, Math.abs(step - previousStepX))
+      }
+      previousStepX = step
+    }
+  }
+
+  for (let x = startX; x <= endX; x += 1) {
+    let previousStepY: number | null = null
+    for (let y = startY; y < endY; y += 1) {
+      const step = sampleY(map, width, x, y + 1) - sampleY(map, width, x, y)
+      minStepY = Math.min(minStepY, step)
+      maxStepY = Math.max(maxStepY, step)
+      if (previousStepY !== null) {
+        maxStepYJump = Math.max(maxStepYJump, Math.abs(step - previousStepY))
+      }
+      previousStepY = step
+    }
+  }
+
+  for (let y = startY; y < endY; y += 1) {
+    for (let x = startX; x <= endX; x += 1) {
+      maxVerticalSampleXJump = Math.max(
+        maxVerticalSampleXJump,
+        Math.abs(sampleX(map, width, x, y + 1) - sampleX(map, width, x, y)),
+      )
+    }
+  }
+
+  for (let x = startX; x < endX; x += 1) {
+    for (let y = startY; y <= endY; y += 1) {
+      maxHorizontalSampleYJump = Math.max(
+        maxHorizontalSampleYJump,
+        Math.abs(sampleY(map, width, x + 1, y) - sampleY(map, width, x, y)),
+      )
+    }
+  }
+
+  return {
+    minStepX,
+    maxStepX,
+    maxStepXJump,
+    maxVerticalSampleXJump,
+    minStepY,
+    maxStepY,
+    maxStepYJump,
+    maxHorizontalSampleYJump,
+  }
 }
 
 describe('nonlinear offset', () => {
@@ -133,6 +269,48 @@ describe('nonlinear offset', () => {
     })
 
     expect(countHorizontalSamplingFolds(map, 240, 160)).toBe(0)
+  })
+
+  it('keeps known tall-image parameters from collapsing into narrow vertical seams', () => {
+    const width = 1030
+    const height = 1533
+    const map = buildOffsetMap(width, height, {
+      algorithm: 'smooth-grid',
+      amplitude: 1.1,
+      cellSize: 20,
+      key: '1fv3j33-zlkn2a-1yldygw',
+      swirl: 0.25,
+    })
+
+    expect(minHorizontalSampleStepNear(map, width, height, 987, 1032, 12)).toBeGreaterThan(0.35)
+    expect(minHorizontalSampleStepNear(map, width, height, 922, 868, 12)).toBeGreaterThan(0.35)
+  }, 10_000)
+
+  it('keeps the reported 1215 by 1087 pixel-art position free of sampling jumps', () => {
+    const width = 1215
+    const height = 1087
+    const map = buildOffsetMap(width, height, {
+      algorithm: 'smooth-grid',
+      amplitude: 1.1,
+      cellSize: 20,
+      key: '1fv3j33-zlkn2a-1yldygw',
+      swirl: 0.25,
+    })
+
+    expect(localSamplingDiagnostics(map, width, height, 922, 868, 32).maxStepXJump).toBeLessThan(0.01)
+    expect(minHorizontalSampleStepNear(map, width, height, 922, 868, 12)).toBeGreaterThan(0.35)
+  }, 10_000)
+
+  it('keeps low-color pixel art from gaining blended seam colors', () => {
+    const source = makePixelArtBlocks(96, 80)
+    const shifted = nonlinearOffsetImage(source, {
+      amplitude: 8,
+      cellSize: 22,
+      key: 'pixel-art-seam',
+      swirl: 0.25,
+    })
+
+    expect(countUniqueColors(shifted)).toBeLessThanOrEqual(countUniqueColors(source))
   })
 
   it('restores the scrambled image better with the matching key than with a wrong key', () => {

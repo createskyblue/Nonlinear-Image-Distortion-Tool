@@ -1,5 +1,5 @@
 import { makePrng } from './random'
-import { bilinearSample, setPixel } from './sampling'
+import { bilinearSample, nearestSample, setPixel, shouldUseNearestSampling } from './sampling'
 
 export type OffsetOptions = {
   algorithm?: 'legacy-grid' | 'smooth-grid'
@@ -15,6 +15,8 @@ export type OffsetVector = {
 }
 
 export type ProgressCallback = (progress: number) => void
+
+type PixelSampler = typeof bilinearSample
 
 const MIN_SAMPLE_STEP = 0.05
 
@@ -193,10 +195,11 @@ async function buildOffsetMapAsync(
 export function nonlinearOffsetImage(source: ImageData, options: OffsetOptions): ImageData {
   const output = new ImageData(source.width, source.height)
   const map = buildOffsetMap(source.width, source.height, options)
+  const samplePixel: PixelSampler = shouldUseNearestSampling(source.data) ? nearestSample : bilinearSample
   for (let y = 0; y < source.height; y += 1) {
     for (let x = 0; x < source.width; x += 1) {
       const vector = map[y * source.width + x]
-      const pixel = bilinearSample(source.data, source.width, source.height, x - vector.dx, y - vector.dy)
+      const pixel = samplePixel(source.data, source.width, source.height, x - vector.dx, y - vector.dy)
       setPixel(output.data, source.width, x, y, pixel)
     }
   }
@@ -206,11 +209,12 @@ export function nonlinearOffsetImage(source: ImageData, options: OffsetOptions):
 export async function nonlinearOffsetImageAsync(source: ImageData, options: OffsetOptions, onProgress: ProgressCallback): Promise<ImageData> {
   const output = new ImageData(source.width, source.height)
   const map = await buildOffsetMapAsync(source.width, source.height, options, onProgress, 0, 45)
+  const samplePixel: PixelSampler = shouldUseNearestSampling(source.data) ? nearestSample : bilinearSample
   const chunkRows = 12
   for (let y = 0; y < source.height; y += 1) {
     for (let x = 0; x < source.width; x += 1) {
       const vector = map[y * source.width + x]
-      const pixel = bilinearSample(source.data, source.width, source.height, x - vector.dx, y - vector.dy)
+      const pixel = samplePixel(source.data, source.width, source.height, x - vector.dx, y - vector.dy)
       setPixel(output.data, source.width, x, y, pixel)
     }
     if (y % chunkRows === chunkRows - 1) {
@@ -245,6 +249,7 @@ function sampleOffsetVector(map: OffsetVector[], width: number, height: number, 
 export function restoreNonlinearOffsetImage(source: ImageData, options: OffsetOptions): ImageData {
   const output = new ImageData(source.width, source.height)
   const map = buildOffsetMap(source.width, source.height, options)
+  const samplePixel: PixelSampler = shouldUseNearestSampling(source.data) ? nearestSample : bilinearSample
 
   for (let y = 0; y < source.height; y += 1) {
     for (let x = 0; x < source.width; x += 1) {
@@ -255,7 +260,7 @@ export function restoreNonlinearOffsetImage(source: ImageData, options: OffsetOp
         sx = x + vector.dx
         sy = y + vector.dy
       }
-      const pixel = bilinearSample(source.data, source.width, source.height, sx, sy)
+      const pixel = samplePixel(source.data, source.width, source.height, sx, sy)
       setPixel(output.data, source.width, x, y, pixel)
     }
   }
@@ -266,6 +271,7 @@ export function restoreNonlinearOffsetImage(source: ImageData, options: OffsetOp
 export async function restoreNonlinearOffsetImageAsync(source: ImageData, options: OffsetOptions, onProgress: ProgressCallback): Promise<ImageData> {
   const output = new ImageData(source.width, source.height)
   const map = await buildOffsetMapAsync(source.width, source.height, options, onProgress, 0, 35)
+  const samplePixel: PixelSampler = shouldUseNearestSampling(source.data) ? nearestSample : bilinearSample
   const chunkRows = 12
 
   for (let y = 0; y < source.height; y += 1) {
@@ -277,7 +283,7 @@ export async function restoreNonlinearOffsetImageAsync(source: ImageData, option
         sx = x + vector.dx
         sy = y + vector.dy
       }
-      const pixel = bilinearSample(source.data, source.width, source.height, sx, sy)
+      const pixel = samplePixel(source.data, source.width, source.height, sx, sy)
       setPixel(output.data, source.width, x, y, pixel)
     }
     if (y % chunkRows === chunkRows - 1) {

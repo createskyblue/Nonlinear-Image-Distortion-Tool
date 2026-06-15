@@ -35,6 +35,29 @@ export function bilinearSample(
   }) as [number, number, number, number]
 }
 
+export function nearestSample(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): [number, number, number, number] {
+  const sx = Math.round(clamp(x, 0, width - 1))
+  const sy = Math.round(clamp(y, 0, height - 1))
+  return getPixel(data, width, sx, sy)
+}
+
+export function shouldUseNearestSampling(data: Uint8ClampedArray, maxUniqueColors = 128): boolean {
+  const colors = new Set<number>()
+  for (let i = 0; i < data.length; i += 4) {
+    colors.add(((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]) >>> 0)
+    if (colors.size > maxUniqueColors) {
+      return false
+    }
+  }
+  return true
+}
+
 export function setPixel(data: Uint8ClampedArray, width: number, x: number, y: number, pixel: ArrayLike<number>): void {
   const index = (y * width + x) * 4
   data[index] = pixel[0]
