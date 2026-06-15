@@ -1,6 +1,6 @@
 # Nonlinear Image Distortion Tool
 
-[中文](./README.md)
+[中文](./README_CN.md)
 
 A local browser tool for nonlinear image distortion. It turns drawings, screenshots, and reference images into parameter-based nonlinear distorted versions, and can use the same parameter code for approximate restoration, simple privacy masking, and source checks.
 

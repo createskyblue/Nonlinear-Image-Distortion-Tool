@@ -1,52 +1,52 @@
-# 图片非线性扰动工具
+# Nonlinear Image Distortion Tool
 
-[English](./README_EN.md)
+[中文](./README_CN.md)
 
-一个在浏览器本地运行的图片非线性扰动工具。它可以把图纸、截图、资料图做成带参数的非线性扰动版本，也可以用同一个参数码尝试还原，方便做简单脱敏和来源确认。
+A local browser tool for nonlinear image distortion. It turns drawings, screenshots, and reference images into parameter-based nonlinear distorted versions, and can use the same parameter code for approximate restoration, simple privacy masking, and source checks.
 
-![界面截图](./img/CN.jpg)
+![Screenshot](./img/EN.jpg)
 
-## 它能做什么
+## What It Does
 
-- **加扰图片**：用密钥把图片做非线性变形，直接下载处理后的 PNG。
-- **用参数码还原**：保存 `NO2:` 开头的参数码，之后用同一个参数码尝试还原。
-- **抗等比例缩放**：图片被放大或缩小后，再放进工具里仍然可以用同一参数码尝试还原。
-- **粘贴自动处理**：复制截图后直接粘贴到页面，工具会自动按当前模式处理。
-- **拖拽和拍照**：支持选择文件、手机拍照、拖拽图片进页面。
-- **连续变模糊**：点“变模糊”会自动加扰再还原一次，可以连续点，让细节逐步变软。
-- **自动复制结果**：可以打开“处理后自动复制结果”，处理完成后直接把结果图放到剪贴板。
-- **记住上次设置**：页面会自动保存当前密钥和参数，下次打开继续使用。
+- **Scramble images**: apply a deterministic nonlinear distortion with your key, then download the PNG result.
+- **Restore with a parameter code**: save the `NO2:` parameter code and use it later to restore with the same settings.
+- **Handles proportional scaling**: if the image is resized, the same parameter code can still be used for approximate restoration.
+- **Paste-to-process**: paste a screenshot directly into the page and it will process automatically with the current mode.
+- **File, camera, and drag-and-drop input**: choose a file, take a photo, or drag an image into the page.
+- **Repeated softening**: click “Blur” repeatedly to scramble and restore again, softening details step by step.
+- **Copy result automatically**: optionally copy the processed PNG to the clipboard after processing.
+- **Remembers settings**: the page saves your latest key and parameters locally.
 
-## 基本用法
+## Basic Workflow
 
-1. 打开页面后，选择图片、拍照、拖拽图片，或者直接粘贴截图。
-2. 选择“加扰”或“还原”模式。
-3. 调整密钥、偏移强度、网格尺度和旋转扰动。
-4. 保存参数码。以后还原时，粘贴这个参数码即可恢复同一组参数。
-5. 点“处理”生成结果，确认后下载。
+1. Open the page and choose a file, take a photo, drag an image in, or paste a screenshot.
+2. Select Scramble or Restore.
+3. Adjust the key, offset strength, grid size, and swirl.
+4. Save the parameter code. Paste it later to restore the same settings.
+5. Click Process, review the result, then download it.
 
-## 参数码很重要
+## Keep the Parameter Code
 
-参数码就是这张图的“钥匙”。如果要之后还原或证明来源，请同时保存：
+The parameter code is the key to reproducing the result. If you need to restore the image later or identify a source, keep both:
 
-- 处理后的图片
-- `NO2:` 开头的参数码
+- the processed image
+- the `NO2:` parameter code
 
-只记住密钥不够，偏移强度、网格尺度、旋转扰动也必须一致。
+The key alone is not enough. Offset strength, grid size, and swirl must also match.
 
-## 运行
+## Run Locally
 
 ```bash
 npm install
 npm run dev -- --host 127.0.0.1 --port 5288
 ```
 
-构建生产版本：
+Build for production:
 
 ```bash
 npm run build
 ```
 
-## 注意
+## Note
 
-还原不是逐像素无损恢复。图片经过加扰、缩放、压缩、截图后，都会有一些损失。这个工具的目标是：用正确参数码能明显更好地还原，用错误参数很难还原出相同效果。
+Restoration is approximate, not pixel-perfect. Scrambling, resizing, compression, and screenshots all introduce some loss. The goal is that the correct parameter code restores the image noticeably better than a wrong one.
