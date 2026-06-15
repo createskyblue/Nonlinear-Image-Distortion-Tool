@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getFirstImageFileFromFileList, getFirstImageFileFromItems } from './input-files'
+import { getFirstImageFileFromFileList, getFirstImageFileFromItems, hasFileTransfer } from './input-files'
 
 function makeFile(name: string, type: string): File {
   return new File(['x'], name, { type })
@@ -35,5 +35,15 @@ describe('input files', () => {
     const files = [makeFile('note.txt', 'text/plain')] as unknown as FileList
 
     expect(getFirstImageFileFromFileList(files)).toBeNull()
+  })
+
+  it('accepts drag events that only expose generic file transfer types', () => {
+    const transfer = {
+      types: ['Files'],
+      items: [],
+      files: [],
+    } as unknown as DataTransfer
+
+    expect(hasFileTransfer(transfer)).toBe(true)
   })
 })

@@ -15,3 +15,9 @@ export function getFirstImageFileFromItems(items: DataTransferItemList): File | 
   }
   return null
 }
+
+export function hasFileTransfer(transfer: DataTransfer): boolean {
+  if (Array.from(transfer.types).includes('Files')) return true
+  if (getFirstImageFileFromItems(transfer.items)) return true
+  return getFirstImageFileFromFileList(Array.from(transfer.files)) !== null
+}

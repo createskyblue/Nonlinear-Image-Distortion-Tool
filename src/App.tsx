@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ClipboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent } from 'react'
 import {
   Camera,
   Download,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import './App.css'
 import { createRandomSeed, downloadObjectUrl, imageDataToObjectUrl, loadImageFile, type ImageLoadResult } from './lib/image-io'
-import { getFirstImageFileFromFileList, getFirstImageFileFromItems } from './lib/input-files'
+import { getFirstImageFileFromFileList, getFirstImageFileFromItems, hasFileTransfer } from './lib/input-files'
 import { decodeParameterCode, encodeParameterCode } from './lib/parameter-code'
 import { decodePersistedSettings, encodePersistedSettings, PERSISTED_SETTINGS_KEY, type PersistedSettings } from './lib/persisted-settings'
 import { processImagePipelineAsync } from './lib/pipeline'
@@ -204,6 +204,26 @@ function App() {
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const sourceRef = useRef<WorkspaceImage | null>(null)
   const resultRef = useRef<WorkspaceImage | null>(null)
+  const loadSourceFileRef = useRef<(file: File) => Promise<WorkspaceImage | null>>(async () => null)
+  const processImageWithSettingsRef = useRef<(
+    processMode: ProcessMode | 'blur',
+    inputSource: WorkspaceImage | null,
+    settings: {
+      copyResultToClipboard: boolean
+      offsetAmplitude: number
+      offsetCellSize: number
+      offsetSeed: string
+      offsetSwirl: number
+    },
+  ) => Promise<void>>(async () => undefined)
+  const modeRef = useRef(mode)
+  const settingsRef = useRef({
+    offsetSeed,
+    offsetAmplitude,
+    offsetCellSize,
+    offsetSwirl,
+    copyResultToClipboard,
+  })
 
   useEffect(() => {
     sourceRef.current = source
@@ -212,6 +232,20 @@ function App() {
   useEffect(() => {
     resultRef.current = result
   }, [result])
+
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
+
+  useEffect(() => {
+    settingsRef.current = {
+      offsetSeed,
+      offsetAmplitude,
+      offsetCellSize,
+      offsetSwirl,
+      copyResultToClipboard,
+    }
+  }, [offsetSeed, offsetAmplitude, offsetCellSize, offsetSwirl, copyResultToClipboard])
 
   useEffect(() => {
     if (typeof localStorage === 'undefined' || offsetSeed.trim().length === 0) return
@@ -308,31 +342,6 @@ function App() {
     }
   }
 
-  function handleDragOver(event: DragEvent<HTMLElement>) {
-    if (!getFirstImageFileFromItems(event.dataTransfer.items) && !getFirstImageFileFromFileList(Array.from(event.dataTransfer.files))) {
-      return
-    }
-    event.preventDefault()
-    setIsDraggingImage(true)
-  }
-
-  function handleDragLeave(event: DragEvent<HTMLElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-      setIsDraggingImage(false)
-    }
-  }
-
-  async function handleDrop(event: DragEvent<HTMLElement>) {
-    const file = getFirstImageFileFromItems(event.dataTransfer.items) ?? getFirstImageFileFromFileList(Array.from(event.dataTransfer.files))
-    if (!file) return
-    event.preventDefault()
-    setIsDraggingImage(false)
-    const loaded = await loadSourceFile(file)
-    if (loaded) {
-      await processCurrentImage(mode, loaded)
-    }
-  }
-
   async function handleProcess() {
     await processCurrentImage(mode)
   }
@@ -342,8 +351,28 @@ function App() {
   }
 
   async function processCurrentImage(processMode: ProcessMode | 'blur', inputSource = source) {
+    await processImageWithSettings(processMode, inputSource, {
+      offsetSeed,
+      offsetAmplitude,
+      offsetCellSize,
+      offsetSwirl,
+      copyResultToClipboard,
+    })
+  }
+
+  async function processImageWithSettings(
+    processMode: ProcessMode | 'blur',
+    inputSource: WorkspaceImage | null,
+    settings: {
+      copyResultToClipboard: boolean
+      offsetAmplitude: number
+      offsetCellSize: number
+      offsetSeed: string
+      offsetSwirl: number
+    },
+  ) {
     if (!inputSource) return
-    if (offsetSeed.trim().length === 0) return
+    if (settings.offsetSeed.trim().length === 0) return
 
     setIsProcessing(true)
     setProgress(0)
@@ -353,7 +382,10 @@ function App() {
         {
           mode: processMode,
           offset: {
-            ...currentOffsetOptions(),
+            amplitude: settings.offsetAmplitude,
+            cellSize: settings.offsetCellSize,
+            key: settings.offsetSeed.trim(),
+            swirl: settings.offsetSwirl / 100,
           },
         },
         (value) => setProgress(Math.min(100, Math.max(0, Math.round(value)))),
@@ -383,7 +415,7 @@ function App() {
         setResult(nextResult)
       }
       setResultName(nextResultName)
-      if (copyResultToClipboard) {
+      if (settings.copyResultToClipboard) {
         await copyImageToClipboard(processed.image)
       }
     } catch (error) {
@@ -393,6 +425,62 @@ function App() {
       setProgress(100)
     }
   }
+
+  useEffect(() => {
+    loadSourceFileRef.current = loadSourceFile
+    processImageWithSettingsRef.current = processImageWithSettings
+  })
+
+  useEffect(() => {
+    let dragDepth = 0
+
+    function handleWindowDragEnter(event: globalThis.DragEvent) {
+      if (!event.dataTransfer || !hasFileTransfer(event.dataTransfer)) return
+      event.preventDefault()
+      dragDepth += 1
+      setIsDraggingImage(true)
+    }
+
+    function handleWindowDragOver(event: globalThis.DragEvent) {
+      if (!event.dataTransfer || !hasFileTransfer(event.dataTransfer)) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+      setIsDraggingImage(true)
+    }
+
+    function handleWindowDragLeave(event: globalThis.DragEvent) {
+      if (!event.dataTransfer || !hasFileTransfer(event.dataTransfer)) return
+      dragDepth = Math.max(0, dragDepth - 1)
+      if (dragDepth === 0) {
+        setIsDraggingImage(false)
+      }
+    }
+
+    async function handleWindowDrop(event: globalThis.DragEvent) {
+      if (!event.dataTransfer || !hasFileTransfer(event.dataTransfer)) return
+      event.preventDefault()
+      dragDepth = 0
+      setIsDraggingImage(false)
+      const file = getFirstImageFileFromItems(event.dataTransfer.items) ?? getFirstImageFileFromFileList(Array.from(event.dataTransfer.files))
+      if (!file) return
+      const loaded = await loadSourceFileRef.current(file)
+      if (loaded) {
+        await processImageWithSettingsRef.current(modeRef.current, loaded, settingsRef.current)
+      }
+    }
+
+    window.addEventListener('dragenter', handleWindowDragEnter)
+    window.addEventListener('dragover', handleWindowDragOver)
+    window.addEventListener('dragleave', handleWindowDragLeave)
+    window.addEventListener('drop', handleWindowDrop)
+
+    return () => {
+      window.removeEventListener('dragenter', handleWindowDragEnter)
+      window.removeEventListener('dragover', handleWindowDragOver)
+      window.removeEventListener('dragleave', handleWindowDragLeave)
+      window.removeEventListener('drop', handleWindowDrop)
+    }
+  }, [])
 
   async function copyImageToClipboard(image: ImageData) {
     if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
@@ -435,9 +523,6 @@ function App() {
     <main
       className={`app-shell ${isDraggingImage ? 'dragging-image' : ''}`}
       onPaste={handlePaste}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       <header className="topbar">
         <div>
