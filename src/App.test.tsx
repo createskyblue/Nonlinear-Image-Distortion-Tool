@@ -1,4 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import App from './App'
 
@@ -48,5 +50,13 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: '图片非线性扰动工具' })).toBeTruthy()
     expect(screen.getByText('怎么用')).toBeTruthy()
+  })
+
+  it('keeps preview images at natural size until they exceed the preview frame', () => {
+    const styles = readFileSync(resolve(__dirname, 'App.css'), 'utf8')
+
+    expect(styles).toContain('.preview-frame img')
+    expect(styles).toContain('width: auto')
+    expect(styles).toContain('max-width: 100%')
   })
 })
