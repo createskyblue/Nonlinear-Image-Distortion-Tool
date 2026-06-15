@@ -4,7 +4,7 @@
 
 A local browser tool for nonlinear image distortion. It turns drawings, screenshots, and reference images into parameter-based nonlinear distorted versions, and can use the same parameter code for approximate restoration, simple privacy masking, and source checks.
 
-![Screenshot](./img/PixPin_2026-06-15_13-32-31.jpg)
+![Screenshot](./img/EN.jpg)
 
 ## What It Does
 
