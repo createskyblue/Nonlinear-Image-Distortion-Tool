@@ -18,7 +18,8 @@ export type ProgressCallback = (progress: number) => void
 
 type PixelSampler = typeof bilinearSample
 
-const MIN_SAMPLE_STEP = 0.05
+const MIN_SAMPLE_STEP = 0.65
+const MAX_SAMPLE_STEP = 1.35
 
 function scaleRelativeLength(value: number, width: number, height: number): number {
   return (Math.min(width, height) * value) / 100
@@ -102,18 +103,13 @@ function buildRawOffsetMap(width: number, height: number, options: OffsetOptions
   return map
 }
 
-function constrainMonotonicSamples(values: number[], maxValue: number): number[] {
+function constrainMonotonicSamples(values: number[]): number[] {
   if (values.length <= 1) return values
-  const constrained = values.map((value) => Math.min(maxValue, Math.max(0, value)))
-
-  constrained[constrained.length - 1] = Math.min(constrained[constrained.length - 1], maxValue)
-  for (let i = constrained.length - 2; i >= 0; i -= 1) {
-    constrained[i] = Math.min(constrained[i], constrained[i + 1] - MIN_SAMPLE_STEP)
-  }
-
-  constrained[0] = Math.max(0, constrained[0])
+  const constrained = [...values]
   for (let i = 1; i < constrained.length; i += 1) {
-    constrained[i] = Math.max(constrained[i], constrained[i - 1] + MIN_SAMPLE_STEP)
+    const minValue = constrained[i - 1] + MIN_SAMPLE_STEP
+    const maxValue = constrained[i - 1] + MAX_SAMPLE_STEP
+    constrained[i] = Math.min(maxValue, Math.max(minValue, constrained[i]))
   }
 
   return constrained
@@ -127,7 +123,7 @@ function stabilizeOffsetMap(map: OffsetVector[], width: number, height: number):
     for (let x = 0; x < width; x += 1) {
       sampleXs.push(x - stabilized[y * width + x].dx)
     }
-    const constrained = constrainMonotonicSamples(sampleXs, width - 1)
+    const constrained = constrainMonotonicSamples(sampleXs)
     for (let x = 0; x < width; x += 1) {
       stabilized[y * width + x].dx = x - constrained[x]
     }
@@ -138,7 +134,7 @@ function stabilizeOffsetMap(map: OffsetVector[], width: number, height: number):
     for (let y = 0; y < height; y += 1) {
       sampleYs.push(y - stabilized[y * width + x].dy)
     }
-    const constrained = constrainMonotonicSamples(sampleYs, height - 1)
+    const constrained = constrainMonotonicSamples(sampleYs)
     for (let y = 0; y < height; y += 1) {
       stabilized[y * width + x].dy = y - constrained[y]
     }

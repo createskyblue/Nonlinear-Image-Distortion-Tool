@@ -191,6 +191,33 @@ function localSamplingDiagnostics(
   }
 }
 
+function countOutOfRangeSamplingSteps(
+  map: OffsetVector[],
+  width: number,
+  height: number,
+  minimumStep: number,
+  maximumStep: number,
+  inset: number,
+): number {
+  let outOfRange = 0
+
+  for (let y = inset; y < height - inset; y += 1) {
+    for (let x = inset; x < width - inset - 1; x += 1) {
+      const step = sampleX(map, width, x + 1, y) - sampleX(map, width, x, y)
+      if (step < minimumStep || step > maximumStep) outOfRange += 1
+    }
+  }
+
+  for (let y = inset; y < height - inset - 1; y += 1) {
+    for (let x = inset; x < width - inset; x += 1) {
+      const step = sampleY(map, width, x, y + 1) - sampleY(map, width, x, y)
+      if (step < minimumStep || step > maximumStep) outOfRange += 1
+    }
+  }
+
+  return outOfRange
+}
+
 describe('nonlinear offset', () => {
   it('builds a deterministic bounded displacement field', () => {
     const first = buildOffsetMap(24, 16, {
@@ -299,6 +326,20 @@ describe('nonlinear offset', () => {
 
     expect(localSamplingDiagnostics(map, width, height, 922, 868, 32).maxStepXJump).toBeLessThan(0.01)
     expect(minHorizontalSampleStepNear(map, width, height, 922, 868, 12)).toBeGreaterThan(0.35)
+  }, 10_000)
+
+  it('keeps interior sampling steps from forming pixel-wide distortion lines', () => {
+    const width = 1215
+    const height = 1087
+    const map = buildOffsetMap(width, height, {
+      algorithm: 'smooth-grid',
+      amplitude: 1.1,
+      cellSize: 20,
+      key: '1fv3j33-zlkn2a-1yldygw',
+      swirl: 0.25,
+    })
+
+    expect(countOutOfRangeSamplingSteps(map, width, height, 0.65, 1.35, 32)).toBe(0)
   }, 10_000)
 
   it('keeps low-color pixel art from gaining blended seam colors', () => {
