@@ -5,6 +5,11 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/Nonlinear-Image-Distortion-Tool/',
   plugins: [react()],
+  server: {
+    watch: {
+      ignored: ['**/tmp/**'],
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
