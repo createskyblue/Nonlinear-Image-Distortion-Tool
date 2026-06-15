@@ -17,6 +17,14 @@ A local browser tool for nonlinear image distortion. It turns drawings, screensh
 - **Copy result automatically**: optionally copy the processed PNG to the clipboard after processing.
 - **Remembers settings**: the page saves your latest key and parameters locally.
 
+## Use Cases
+
+- **Draft previews for design work**: share CAD exports, UI mockups, product structure images, or diagrams in a distorted form. Viewers can understand the layout and direction, but the image is harder to reuse directly as production material.
+- **Lightweight source tracing**: keep the original image and the parameter code used for each shared copy. If a screenshot or preview later appears elsewhere, the same parameter code can help check whether it came from that distribution path.
+- **Reversible visual redaction**: apply a mild distortion to screenshots that contain customer names, internal notes, or other sensitive details. The image remains useful for discussion, while the parameter code keeps a path for approximate restoration.
+- **Supporting provenance checks**: when a disputed image is suspected to derive from your original material, restoration with the known parameter code can provide an additional signal. A noticeably better restoration with the correct code is useful context, but it should not be treated as forensic proof by itself.
+- **Local-only processing**: images are processed in the browser. They do not need to be uploaded to a remote service.
+
 ## Basic Workflow
 
 1. Open the page and choose a file, take a photo, drag an image in, or paste a screenshot.
