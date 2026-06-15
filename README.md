@@ -34,6 +34,16 @@ The parameter code is the key to reproducing the result. If you need to restore 
 
 The key alone is not enough. Offset strength, grid size, and swirl must also match.
 
+## Why No Watermarking?
+
+This project deliberately does not include visible or invisible watermarking.
+
+Invisible watermarks were tested first, but they were not robust enough for this use case. A watermark that fails after resizing, compression, screenshots, or local interference is not reliable as a tracking signal.
+
+Visible watermarks are also weak here. Even when a visible watermark is distorted by this tool, current AI watermark removal can still erase it with little effort, so it does not provide meaningful protection.
+
+The useful signal turned out to be the nonlinear distortion itself. AI-assisted tools can remove or redraw text and logos, but they cannot reliably recover a keyed nonlinear distortion back to the exact original image. The parameter code therefore acts like a practical tracing key: if the correct key restores the image much better than the wrong key, it gives a way to identify which parameter set was used.
+
 ## Run Locally
 
 ```bash
