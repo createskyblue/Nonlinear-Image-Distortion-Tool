@@ -18,6 +18,10 @@
   padding: 4px 0 18px;
 }
 
+.topbar > div:first-child {
+  margin-right: auto;
+}
+
 .eyebrow {
   display: block;
   color: var(--muted);
@@ -38,7 +42,8 @@ h2 {
   font-weight: 720;
 }
 
-.mode-badge {
+.mode-badge,
+.github-link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -49,6 +54,22 @@ h2 {
   border-radius: var(--radius);
   color: var(--accent-strong);
   font-weight: 720;
+}
+
+.github-link {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.github-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.github-mark {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
 }
 
 .workspace {
@@ -388,10 +409,16 @@ h2 {
   }
 
   .mode-badge,
+  .github-link,
   .controls,
   .preview-grid {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .github-link,
+  .mode-badge {
+    justify-content: center;
   }
 
   .preview-frame {

@@ -8,7 +8,7 @@ describe('App', () => {
 
     expect(screen.getByText('密钥追踪')).toBeTruthy()
     expect(screen.getByText('怎么用')).toBeTruthy()
-    expect(screen.getByText('先选一张图片，也可以直接粘贴截图；粘贴后会自动处理。')).toBeTruthy()
+    expect(screen.getByText('先选一张图片，也可以直接粘贴截图或拖入图片；放进来后会自动处理。')).toBeTruthy()
     expect(screen.getByText('别人把图片放大或缩小后再发回来，也可以用同一个参数码尝试还原。')).toBeTruthy()
     expect(screen.getByText('点“变模糊”会自动加扰再还原一次，可以连续点，细节会一层层变软。')).toBeTruthy()
     expect(screen.getByRole('button', { name: '选文件' })).toBeTruthy()
@@ -20,6 +20,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /处理/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: '变模糊' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /下载/ })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '打开 GitHub 仓库' }).getAttribute('href')).toBe('https://github.com/createskyblue/Nonlinear-Image-Distortion-Tool')
     expect(screen.getByText('处理后自动复制结果')).toBeTruthy()
     expect(screen.getByText('非线性偏移')).toBeTruthy()
     expect(screen.getByText('原图预览')).toBeTruthy()

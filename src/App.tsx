@@ -28,6 +28,7 @@ const fallbackSettings: PersistedSettings = {
     key: createRandomSeed(),
     swirl: 0.25,
   },
+  copyResultToClipboard: false,
 }
 
 function loadInitialSettings(): PersistedSettings {
@@ -81,6 +82,17 @@ function PreviewPanel({ title, image, meta }: { title: string; image?: string; m
   )
 }
 
+function GitHubMark() {
+  return (
+    <svg className="github-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 .5C5.65.5.5 5.65.5 12c0 5.09 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.16c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.18.92-.26 1.9-.38 2.88-.39.98.01 1.96.13 2.88.39 2.2-1.49 3.16-1.18 3.16-1.18.62 1.58.23 2.75.11 3.04.73.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.21.67.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
+      />
+    </svg>
+  )
+}
+
 function App() {
   const [source, setSource] = useState<WorkspaceImage | null>(null)
   const [result, setResult] = useState<WorkspaceImage | null>(null)
@@ -96,7 +108,7 @@ function App() {
   const [parameterCodeInput, setParameterCodeInput] = useState('')
   const [isEditingParameterCode, setIsEditingParameterCode] = useState(false)
   const [isDraggingImage, setIsDraggingImage] = useState(false)
-  const [copyResultToClipboard, setCopyResultToClipboard] = useState(false)
+  const [copyResultToClipboard, setCopyResultToClipboard] = useState(initialSettings.copyResultToClipboard)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -123,9 +135,10 @@ function App() {
           key: offsetSeed.trim(),
           swirl: offsetSwirl / 100,
         },
+        copyResultToClipboard,
       }),
     )
-  }, [mode, offsetSeed, offsetAmplitude, offsetCellSize, offsetSwirl])
+  }, [mode, offsetSeed, offsetAmplitude, offsetCellSize, offsetSwirl, copyResultToClipboard])
 
   useEffect(() => {
     return () => {
@@ -187,7 +200,10 @@ function App() {
     const file = event.target.files ? getFirstImageFileFromFileList(event.target.files) : null
     event.target.value = ''
     if (!file) return
-    await loadSourceFile(file)
+    const loaded = await loadSourceFile(file)
+    if (loaded) {
+      await processCurrentImage(mode, loaded)
+    }
   }
 
   async function handlePaste(event: ClipboardEvent<HTMLElement>) {
@@ -219,7 +235,10 @@ function App() {
     if (!file) return
     event.preventDefault()
     setIsDraggingImage(false)
-    await loadSourceFile(file)
+    const loaded = await loadSourceFile(file)
+    if (loaded) {
+      await processCurrentImage(mode, loaded)
+    }
   }
 
   async function handleProcess() {
@@ -337,6 +356,17 @@ function App() {
           <Shield size={18} aria-hidden="true" />
           密钥追踪
         </div>
+        <a
+          className="github-link"
+          href="https://github.com/createskyblue/Nonlinear-Image-Distortion-Tool"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="打开 GitHub 仓库"
+          title="打开 GitHub 仓库"
+        >
+          <GitHubMark />
+          <span>GitHub</span>
+        </a>
       </header>
 
       <div className="workspace">
@@ -347,7 +377,7 @@ function App() {
               <h2>怎么用</h2>
             </div>
             <ul>
-              <li>先选一张图片，也可以直接粘贴截图；粘贴后会自动处理。</li>
+              <li>先选一张图片，也可以直接粘贴截图或拖入图片；放进来后会自动处理。</li>
               <li>点“加扰”后下载图片，把参数码一起保存好；参数码就是以后还原用的钥匙。</li>
               <li>别人把图片放大或缩小后再发回来，也可以用同一个参数码尝试还原。</li>
               <li>点“还原”会自动把右侧结果换到左侧，方便立刻对比还原效果。</li>

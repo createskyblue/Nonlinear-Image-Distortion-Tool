@@ -5,10 +5,11 @@ export const PERSISTED_SETTINGS_KEY = 'nonlinear-offset-settings-v2'
 export type PersistedSettings = {
   mode: 'scramble' | 'restore'
   offset: OffsetOptions
+  copyResultToClipboard: boolean
 }
 
 type PersistedSettingsPayload = PersistedSettings & {
-  v: 2
+  v: 2 | 3
 }
 
 function isMode(value: unknown): value is PersistedSettings['mode'] {
@@ -22,7 +23,7 @@ function isFiniteNumber(value: unknown): value is number {
 function isPersistedSettingsPayload(value: unknown): value is PersistedSettingsPayload {
   if (typeof value !== 'object' || value === null) return false
   const payload = value as Record<string, unknown>
-  if (payload.v !== 2 || !isMode(payload.mode)) return false
+  if ((payload.v !== 2 && payload.v !== 3) || !isMode(payload.mode)) return false
   const offset = payload.offset as Record<string, unknown> | undefined
   return (
     typeof offset === 'object' &&
@@ -37,7 +38,7 @@ function isPersistedSettingsPayload(value: unknown): value is PersistedSettingsP
 
 export function encodePersistedSettings(settings: PersistedSettings): string {
   return JSON.stringify({
-    v: 2,
+    v: 3,
     ...settings,
   } satisfies PersistedSettingsPayload)
 }
@@ -55,6 +56,7 @@ export function decodePersistedSettings(value: string | null): PersistedSettings
         cellSize: parsed.offset.cellSize,
         swirl: parsed.offset.swirl,
       },
+      copyResultToClipboard: parsed.v === 3 ? parsed.copyResultToClipboard === true : false,
     }
   } catch {
     return null

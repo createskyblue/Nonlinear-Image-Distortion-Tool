@@ -11,9 +11,34 @@ describe('persisted settings', () => {
         cellSize: 10,
         swirl: 0.35,
       },
+      copyResultToClipboard: true,
     }
 
     expect(decodePersistedSettings(encodePersistedSettings(settings))).toEqual(settings)
+  })
+
+  it('keeps old v2 settings readable', () => {
+    const value = JSON.stringify({
+      v: 2,
+      mode: 'scramble',
+      offset: {
+        key: 'old-owner',
+        amplitude: 3,
+        cellSize: 12,
+        swirl: 0.2,
+      },
+    })
+
+    expect(decodePersistedSettings(value)).toEqual({
+      mode: 'scramble',
+      offset: {
+        key: 'old-owner',
+        amplitude: 3,
+        cellSize: 12,
+        swirl: 0.2,
+      },
+      copyResultToClipboard: false,
+    })
   })
 
   it('returns null for invalid persisted data', () => {
