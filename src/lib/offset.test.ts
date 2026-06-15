@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildOffsetMap, nonlinearOffsetImage, restoreNonlinearOffsetImage } from './offset'
+import { buildOffsetMap, nonlinearOffsetImage, restoreNonlinearOffsetImage, type OffsetVector } from './offset'
 
 function makeStripes(width: number, height: number): ImageData {
   const data = new Uint8ClampedArray(width * height * 4)
@@ -37,6 +37,22 @@ function meanAbsoluteRgbDifference(a: ImageData, b: ImageData): number {
     total += Math.abs(a.data[i + 2] - b.data[i + 2])
   }
   return total / ((a.data.length / 4) * 3)
+}
+
+function countHorizontalSamplingFolds(map: OffsetVector[], width: number, height: number): number {
+  let folds = 0
+  for (let y = 0; y < height; y += 1) {
+    let previousSampleX = 0
+    for (let x = 0; x < width; x += 1) {
+      const vector = map[y * width + x]
+      const sampleX = x - vector.dx
+      if (x > 0 && sampleX < previousSampleX) {
+        folds += 1
+      }
+      previousSampleX = sampleX
+    }
+  }
+  return folds
 }
 
 describe('nonlinear offset', () => {
@@ -106,6 +122,17 @@ describe('nonlinear offset', () => {
 
     expect(largeVector.dx).toBeCloseTo(smallVector.dx * 2, 1)
     expect(largeVector.dy).toBeCloseTo(smallVector.dy * 2, 1)
+  })
+
+  it('keeps the default displacement field from folding into vertical tears', () => {
+    const map = buildOffsetMap(240, 160, {
+      amplitude: 6,
+      cellSize: 10,
+      key: 'tear-prone-owner',
+      swirl: 0.25,
+    })
+
+    expect(countHorizontalSamplingFolds(map, 240, 160)).toBe(0)
   })
 
   it('restores the scrambled image better with the matching key than with a wrong key', () => {

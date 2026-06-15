@@ -9,7 +9,7 @@ A local browser tool for nonlinear image distortion. It turns drawings, screensh
 ## What It Does
 
 - **Scramble images**: apply a deterministic nonlinear distortion with your key, then download the PNG result.
-- **Restore with a parameter code**: save the `NO2:` parameter code and use it later to restore with the same settings.
+- **Restore with a parameter code**: save the `NO3:` parameter code and use it later to restore with the same settings. Older `NO2:` codes remain supported for images created before the anti-tear field update.
 - **Handles proportional scaling**: if the image is resized, the same parameter code can still be used for approximate restoration.
 - **Paste-to-process**: paste a screenshot directly into the page and it will process automatically with the current mode.
 - **File, camera, and drag-and-drop input**: choose a file, take a photo, or drag an image into the page.
@@ -38,7 +38,7 @@ A local browser tool for nonlinear image distortion. It turns drawings, screensh
 The parameter code is the key to reproducing the result. If you need to restore the image later or identify a source, keep both:
 
 - the processed image
-- the `NO2:` parameter code
+- the `NO3:` parameter code
 
 The key alone is not enough. Offset strength, grid size, and swirl must also match.
 

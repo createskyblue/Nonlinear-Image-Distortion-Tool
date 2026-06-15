@@ -2,6 +2,7 @@ import { makePrng } from './random'
 import { bilinearSample, setPixel } from './sampling'
 
 export type OffsetOptions = {
+  algorithm?: 'legacy-grid' | 'smooth-grid'
   amplitude: number
   cellSize: number
   key: string
@@ -14,6 +15,8 @@ export type OffsetVector = {
 }
 
 export type ProgressCallback = (progress: number) => void
+
+const MIN_SAMPLE_STEP = 0.05
 
 function scaleRelativeLength(value: number, width: number, height: number): number {
   return (Math.min(width, height) * value) / 100
@@ -84,7 +87,7 @@ function buildOffsetVectorAt(x: number, y: number, context: OffsetContext): Offs
   }
 }
 
-export function buildOffsetMap(width: number, height: number, options: OffsetOptions): OffsetVector[] {
+function buildRawOffsetMap(width: number, height: number, options: OffsetOptions): OffsetVector[] {
   const context = createOffsetContext(width, height, options)
   const map: OffsetVector[] = []
 
@@ -95,6 +98,59 @@ export function buildOffsetMap(width: number, height: number, options: OffsetOpt
   }
 
   return map
+}
+
+function constrainMonotonicSamples(values: number[], maxValue: number): number[] {
+  if (values.length <= 1) return values
+  const constrained = values.map((value) => Math.min(maxValue, Math.max(0, value)))
+
+  constrained[constrained.length - 1] = Math.min(constrained[constrained.length - 1], maxValue)
+  for (let i = constrained.length - 2; i >= 0; i -= 1) {
+    constrained[i] = Math.min(constrained[i], constrained[i + 1] - MIN_SAMPLE_STEP)
+  }
+
+  constrained[0] = Math.max(0, constrained[0])
+  for (let i = 1; i < constrained.length; i += 1) {
+    constrained[i] = Math.max(constrained[i], constrained[i - 1] + MIN_SAMPLE_STEP)
+  }
+
+  return constrained
+}
+
+function stabilizeOffsetMap(map: OffsetVector[], width: number, height: number): OffsetVector[] {
+  const stabilized = map.map((vector) => ({ ...vector }))
+
+  for (let y = 0; y < height; y += 1) {
+    const sampleXs: number[] = []
+    for (let x = 0; x < width; x += 1) {
+      sampleXs.push(x - stabilized[y * width + x].dx)
+    }
+    const constrained = constrainMonotonicSamples(sampleXs, width - 1)
+    for (let x = 0; x < width; x += 1) {
+      stabilized[y * width + x].dx = x - constrained[x]
+    }
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    const sampleYs: number[] = []
+    for (let y = 0; y < height; y += 1) {
+      sampleYs.push(y - stabilized[y * width + x].dy)
+    }
+    const constrained = constrainMonotonicSamples(sampleYs, height - 1)
+    for (let y = 0; y < height; y += 1) {
+      stabilized[y * width + x].dy = y - constrained[y]
+    }
+  }
+
+  return stabilized
+}
+
+export function buildOffsetMap(width: number, height: number, options: OffsetOptions): OffsetVector[] {
+  const map = buildRawOffsetMap(width, height, options)
+  if (options.algorithm === 'legacy-grid') {
+    return map
+  }
+  return stabilizeOffsetMap(map, width, height)
 }
 
 function waitForFrame(): Promise<void> {
@@ -128,7 +184,10 @@ async function buildOffsetMapAsync(
     }
   }
   onProgress(end)
-  return map
+  if (options.algorithm === 'legacy-grid') {
+    return map
+  }
+  return stabilizeOffsetMap(map, width, height)
 }
 
 export function nonlinearOffsetImage(source: ImageData, options: OffsetOptions): ImageData {

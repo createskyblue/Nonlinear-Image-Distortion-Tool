@@ -10,12 +10,31 @@ describe('parameter code', () => {
       swirl: 0.25,
     })
 
-    expect(code).toMatch(/^NO2:/)
+    expect(code).toMatch(/^NO3:/)
     expect(decodeParameterCode(code)).toEqual({
+      algorithm: 'smooth-grid',
       key: 'owner-a',
       amplitude: 2,
       cellSize: 10,
       swirl: 0.25,
+    })
+  })
+
+  it('keeps old NO2 parameter codes on the legacy algorithm', () => {
+    const legacyPayload = btoa(JSON.stringify({
+      v: 2,
+      key: 'legacy-owner',
+      amplitude: 3,
+      cellSize: 12,
+      swirl: 0.4,
+    }))
+
+    expect(decodeParameterCode(`NO2:${legacyPayload}`)).toEqual({
+      algorithm: 'legacy-grid',
+      key: 'legacy-owner',
+      amplitude: 3,
+      cellSize: 12,
+      swirl: 0.4,
     })
   })
 
